@@ -1,0 +1,5 @@
+{
+    "python-envs.defaultEnvManager": "ms-python.python:system",
+    "python-envs.pythonProjects": [],
+    "php.validate.executablePath": "c:\\xampp\\php\\php.exe"
+}
