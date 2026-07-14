@@ -45,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$page_title = 'Admin Login - FoodieHub';
+$page_title = 'Admin Login - DigitalDine';
 ?>
 
 <!DOCTYPE html>
@@ -62,7 +62,7 @@ $page_title = 'Admin Login - FoodieHub';
     <div class="admin-login-container">
         <div class="admin-login-form">
             <div class="login-header">
-                <h2><i class="fas fa-utensils"></i> FoodieHub Admin</h2>
+                <h2><i class="fas fa-utensils"></i> DigitalDine Admin</h2>
                 <p>Please sign in to access the admin panel</p>
             </div>
 

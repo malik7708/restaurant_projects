@@ -1,11 +1,11 @@
 <?php
-$page_title = 'About Us - FoodieHub';
+$page_title = 'About Us - DigitalDine';
 ?>
 
 <?php include __DIR__ . '/../includes/header.php'; ?>
 
 <?php
-$hero_title = 'About FoodieHub';
+$hero_title = 'About DigitalDine';
 $hero_subtitle = 'Discover our story and what makes us special.';
 $hero_image = '/restaurant_project/assets/images/about-bg.png';
 $hero_cta_text = 'Learn More';
@@ -44,10 +44,10 @@ include __DIR__ . '/../includes/hero.php';
 			</div>
 			<!-- Right: Text -->
 			<div class="about-content">
-				<h2>Welcome to FoodieHub</h2>
-				<p>At FoodieHub, we believe that food is more than just sustenance – it's an experience. Our chefs craft each dish with passion and precision, using only the freshest ingredients sourced from local farms and suppliers.</p>
+				<h2>Welcome to DigitalDine</h2>
+				<p>At DigitalDine, we believe that food is more than just sustenance – it's an experience. Our chefs craft each dish with passion and precision, using only the freshest ingredients sourced from local farms and suppliers.</p>
 				<p>Whether you're joining us for a casual lunch, a romantic dinner, or a special celebration, we strive to create an atmosphere where you can relax, enjoy great company, and savor every bite.</p>
-				<p>Thank you for being part of our story. We look forward to welcoming you to FoodieHub and sharing our love of food with you.</p>
+				<p>Thank you for being part of our story. We look forward to welcoming you to DigitalDine and sharing our love of food with you.</p>
 			</div>
 		</div>
 	</div>

@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../includes/db.php';
 
-$page_title = 'Contact Us - FoodieHub';
+$page_title = 'Contact Us - DigitalDine';
 
 $errors = [];
 $success = '';
@@ -174,7 +174,7 @@ include __DIR__ . '/../includes/hero.php';
         <div style="text-align: center; margin-top: 2rem;">
             <p style="color: #666; margin-bottom: 1rem;">
                 <i class="fas fa-map-marker-alt" style="color: #667eea; margin-right: 0.5rem;"></i>
-                <strong>FoodieHub Restaurant</strong><br>
+                <strong>DigitalDine Restaurant</strong><br>
                 78 Food Street, F-7 Sector<br>
                 Islamabad, Pakistan
             </p>

@@ -9,7 +9,7 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 
 require_once '../includes/db.php';
 
-$page_title = 'Manage Banners - FoodieHub';
+$page_title = 'Manage Banners - DigitalDine';
 
 $errors = [];
 $success = '';

@@ -2,7 +2,7 @@
 session_start();
 require_once __DIR__ . '/../includes/db.php';
 
-$page_title = 'Shopping Cart - FoodieHub';
+$page_title = 'Shopping Cart - DigitalDine';
 
 // Prevent caching
 header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");

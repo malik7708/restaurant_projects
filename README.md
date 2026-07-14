@@ -1,4 +1,4 @@
-# FoodieHub - Smart QR Dining System
+# DigitalDine - Smart QR Dining System
 
 A complete restaurant website upgraded with Smart QR Dining System, built with PHP, MySQL, HTML, CSS, and JavaScript. Features professional banner slider, menu management, order system, and now table-based QR ordering with waiter call functionality.
 

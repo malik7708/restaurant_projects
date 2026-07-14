@@ -9,7 +9,72 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 
 require_once __DIR__ . '/../includes/db.php';
 
-$page_title = 'Admin Dashboard - FoodieHub';
+// Sync table statuses: mark tables 'inactive' if they have active orders
+try {
+    $pdo->beginTransaction();
+    // Mark tables inactive if they have non-final orders
+    $pdo->exec("UPDATE tables SET status = 'inactive' WHERE id IN (SELECT DISTINCT table_id FROM orders WHERE table_id IS NOT NULL AND status IN ('pending','confirmed','preparing','ready'))");
+    // Mark tables active if they do not have non-final orders
+    $pdo->exec("UPDATE tables SET status = 'active' WHERE id NOT IN (SELECT DISTINCT table_id FROM orders WHERE table_id IS NOT NULL AND status IN ('pending','confirmed','preparing','ready'))");
+    $pdo->commit();
+} catch (PDOException $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    // Continue without failing dashboard
+}
+
+$page_title = 'Admin Dashboard - DigitalDine';
+$success = '';
+$errors = [];
+$reserved_tables = [];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_reserved_table'])) {
+    $table_id = intval($_POST['table_id'] ?? 0);
+
+    if ($table_id > 0) {
+        try {
+            $stmt = $pdo->prepare("UPDATE tables SET status = 'active' WHERE id = ? AND status = 'inactive'");
+            $stmt->execute([$table_id]);
+            if ($stmt->rowCount() > 0) {
+                $success = 'Table has been reset and is now active.';
+                // Also clear table association from any non-final orders so table stays free
+                try {
+                    $ust = $pdo->prepare("UPDATE orders SET table_id = NULL WHERE table_id = ? AND status IN ('pending','confirmed','preparing','ready')");
+                    $ust->execute([$table_id]);
+                } catch (PDOException $e) {
+                    // log but don't fail
+                    error_log('Failed to clear orders for table reset: ' . $e->getMessage());
+                }
+
+                // Clear any session files that reference this table (so sessions won't reassign it)
+                try {
+                    $save_path = session_save_path();
+                    if (empty($save_path)) $save_path = sys_get_temp_dir();
+                    if (is_dir($save_path)) {
+                        $entries = scandir($save_path);
+                        foreach ($entries as $entry) {
+                            if ($entry === '.' || $entry === '..') continue;
+                            $path = rtrim($save_path, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $entry;
+                            if (!is_file($path)) continue;
+                            $contents = @file_get_contents($path);
+                            if ($contents === false || $contents === '') continue;
+                            if (strpos($contents, 'table_id|i:' . (int)$table_id . ';') !== false) {
+                                @unlink($path);
+                            }
+                        }
+                    }
+                } catch (Exception $e) {
+                    // ignore
+                }
+            } else {
+                $errors[] = 'Unable to reset table. It may already be active or not exist.';
+            }
+        } catch (PDOException $e) {
+            $errors[] = 'Database error: ' . $e->getMessage();
+        }
+    } else {
+        $errors[] = 'Please select a reserved table to reset.';
+    }
+}
 
 // Get dashboard statistics
 try {
@@ -37,10 +102,6 @@ try {
     $stmt = $pdo->query("SELECT COUNT(*) as active FROM tables WHERE status = 'active'");
     $active_tables = $stmt->fetch()['active'];
 
-    // Pending waiter calls
-    $stmt = $pdo->query("SELECT COUNT(*) as total FROM waiter_calls WHERE status = 'pending'");
-    $pending_calls = $stmt->fetch()['total'];
-
     // Recent orders with table info
     $stmt = $pdo->query("SELECT o.id, o.customer_name, o.total_price, o.status, o.created_at, t.table_number FROM orders o LEFT JOIN tables t ON o.table_id = t.id ORDER BY o.created_at DESC LIMIT 5");
     $recent_orders = $stmt->fetchAll();
@@ -53,9 +114,9 @@ try {
     $stmt = $pdo->query("SELECT t.table_number, COUNT(o.id) as order_count, SUM(o.total_price) as total_revenue FROM tables t LEFT JOIN orders o ON t.id = o.table_id GROUP BY t.id, t.table_number ORDER BY t.table_number");
     $orders_by_table = $stmt->fetchAll();
 
-    // Recent waiter calls
-    $stmt = $pdo->query("SELECT wc.id, wc.status, wc.created_at, t.table_number FROM waiter_calls wc JOIN tables t ON wc.table_id = t.id ORDER BY wc.created_at DESC LIMIT 5");
-    $recent_calls = $stmt->fetchAll();
+    // Reserved tables for reset option
+    $stmt = $pdo->query("SELECT id, table_number FROM tables WHERE status = 'inactive' ORDER BY table_number");
+    $reserved_tables = $stmt->fetchAll();
 } catch (PDOException $e) {
     die("Database error: " . $e->getMessage());
 }
@@ -90,11 +151,44 @@ try {
                 <li><a href="manage_menu.php"><i class="fas fa-utensils"></i> Manage Menu</a></li>
                 <li><a href="manage_orders.php"><i class="fas fa-shopping-cart"></i> Manage Orders</a></li>
                 <li><a href="manage_tables.php"><i class="fas fa-chair"></i> Manage Tables</a></li>
-                <li><a href="manage_waiter_calls.php"><i class="fas fa-bell"></i> Waiter Calls</a></li>
             </ul>
         </div>
 
         <div class="admin-content">
+            <?php if (!empty($errors)): ?>
+                <div class="alert alert-error">
+                    <ul>
+                        <?php foreach ($errors as $error): ?>
+                            <li><?php echo htmlspecialchars($error); ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($success): ?>
+                <div class="alert alert-success">
+                    <?php echo htmlspecialchars($success); ?>
+                </div>
+            <?php endif; ?>
+
+            <div class="table-reset-card" style="margin-bottom: 1.5rem;">
+                <div class="card" style="padding: 1.5rem; border-radius: 12px; background: white; box-shadow: 0 8px 20px rgba(0,0,0,0.08);">
+                    <h3 style="margin-top: 0; margin-bottom: 1rem;">Reset Reserved Table</h3>
+                    <form method="POST" style="display: grid; gap: 1rem; max-width: 500px;">
+                        <select name="table_id" required style="padding: 0.9rem 1rem; border: 1px solid #ddd; border-radius: 10px;">
+                            <option value="">Select a reserved table</option>
+                            <?php foreach ($reserved_tables as $table): ?>
+                                <option value="<?php echo htmlspecialchars($table['id']); ?>">Table <?php echo htmlspecialchars($table['table_number']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <button type="submit" name="reset_reserved_table" class="btn btn-primary" style="width: fit-content;">Reset Table</button>
+                        <?php if (empty($reserved_tables)): ?>
+                            <p style="margin: 0; color: #666;">No reserved tables available for reset.</p>
+                        <?php endif; ?>
+                    </form>
+                </div>
+            </div>
+
             <!-- Statistics Cards -->
             <div class="stats-grid">
                 <div class="stat-card">
@@ -157,15 +251,6 @@ try {
                     </div>
                 </div>
 
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-bell"></i>
-                    </div>
-                    <div class="stat-content">
-                        <h3><?php echo $pending_calls; ?></h3>
-                        <p>Pending Calls</p>
-                    </div>
-                </div>
             </div>
 
             <!-- Recent Activity -->
@@ -240,28 +325,6 @@ try {
                     </div>
                 </div>
 
-                <!-- Waiter Calls -->
-                <div class="activity-section">
-                    <h3><i class="fas fa-bell"></i> Recent Waiter Calls</h3>
-                    <div class="activity-list">
-                        <?php if (empty($recent_calls)): ?>
-                            <p>No waiter calls yet.</p>
-                        <?php else: ?>
-                            <?php foreach ($recent_calls as $call): ?>
-                                <div class="activity-item">
-                                    <div class="activity-info">
-                                        <strong>Table <?php echo htmlspecialchars($call['table_number']); ?></strong>
-                                        <p>Waiter call assistance</p>
-                                    </div>
-                                    <div class="activity-meta">
-                                        <span class="status status-<?php echo $call['status']; ?>"><?php echo ucfirst($call['status']); ?></span>
-                                        <small><?php echo date('M d, H:i', strtotime($call['created_at'])); ?></small>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
-                </div>
             </div>
         </div>
     </div>

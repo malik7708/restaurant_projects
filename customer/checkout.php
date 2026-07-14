@@ -2,7 +2,7 @@
 session_start();
 require_once __DIR__ . '/../includes/db.php';
 
-$page_title = 'Checkout - FoodieHub';
+$page_title = 'Checkout - DigitalDine';
 
 $errors = [];
 $success = '';
@@ -92,18 +92,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             // Insert order into database
             $table_id = isset($_SESSION['table_id']) ? $_SESSION['table_id'] : null;
-            $stmt = $pdo->prepare("INSERT INTO orders (table_id, customer_name, customer_email, customer_phone, customer_address, items, total_price, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')");
+            $stmt = $pdo->prepare("INSERT INTO orders (table_id, customer_name, customer_email, customer_phone, items, total_price, status) VALUES (?, ?, ?, ?, ?, ?, 'pending')");
             $stmt->execute([
                 $table_id,
                 $customer_name,
                 $customer_email,
                 $customer_phone,
-                null, // No delivery address for table orders
                 json_encode($cart_data),
                 $total_price
             ]);
 
             $order_id = $pdo->lastInsertId();
+
+            // Mark table as reserved/inactive when an order is placed for it
+            if (!empty($table_id)) {
+                try {
+                    $ustmt = $pdo->prepare("UPDATE tables SET status = 'inactive' WHERE id = ?");
+                    $ustmt->execute([$table_id]);
+                } catch (PDOException $e) {
+                    error_log('Failed to mark table inactive: ' . $e->getMessage());
+                }
+            }
 
             if ($isAjax) {
                 // Return JSON response for AJAX
@@ -462,6 +471,7 @@ include __DIR__ . '/../includes/hero.php';
 
     // Modal functions
     function showOrderSuccessModal(orderId, total) {
+        window.lastOrderId = orderId;
         document.getElementById('modal-order-id').textContent = `#${orderId.toString().padStart(4, '0')}`;
         document.getElementById('modal-total-amount').textContent = `Rs ${total.toLocaleString()}`;
         document.getElementById('order-success-modal').style.display = 'flex';
@@ -482,8 +492,28 @@ include __DIR__ . '/../includes/hero.php';
     }
 
     function trackOrder() {
-        // For now, just close modal and go to home
-        closeOrderModal();
+        const modal = document.getElementById('order-track-modal');
+        if (modal) {
+            modal.style.display = 'flex';
+            modal.classList.add('show');
+            document.body.classList.add('modal-open');
+            const input = document.getElementById('track-order-id');
+            const result = document.getElementById('track-order-result');
+            if (input) {
+                input.value = '';
+                setTimeout(() => input.focus(), 50);
+            }
+            if (result) {
+                result.innerHTML = '';
+            }
+            return;
+        }
+
+        if (typeof openTrackOrderModal === 'function') {
+            openTrackOrderModal();
+        } else {
+            window.location.href = 'index.php';
+        }
     }
 
     // Close modals when clicking outside

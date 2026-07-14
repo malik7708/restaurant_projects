@@ -19,6 +19,51 @@ $page_title = 'Manage Tables - Admin';
 $errors = [];
 $success = '';
 
+function resetTableSessionsForTable($table_id, $table_number)
+{
+    $save_path = session_save_path();
+    if (empty($save_path)) {
+        $save_path = sys_get_temp_dir();
+    }
+
+    if (!is_dir($save_path)) {
+        return 0;
+    }
+
+    $cleared = 0;
+    $entries = scandir($save_path);
+
+    if ($entries === false) {
+        return 0;
+    }
+
+    foreach ($entries as $entry) {
+        if ($entry === '.' || $entry === '..') {
+            continue;
+        }
+
+        $path = rtrim($save_path, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $entry;
+        if (!is_file($path)) {
+            continue;
+        }
+
+        $contents = @file_get_contents($path);
+        if ($contents === false || $contents === '') {
+            continue;
+        }
+
+        $matched_table_id = strpos($contents, 'table_id|i:' . (int)$table_id . ';') !== false;
+        $matched_table_number = strpos($contents, 'table_number|s:' . strlen($table_number) . ':"' . $table_number . '";') !== false;
+
+        if ($matched_table_id || $matched_table_number) {
+            @unlink($path);
+            $cleared++;
+        }
+    }
+
+    return $cleared;
+}
+
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action'])) {
@@ -103,6 +148,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             } catch (PDOException $e) {
                 $errors[] = 'Database error: ' . $e->getMessage();
+            }
+        } elseif ($action === 'reset_table') {
+            $table_id = (int)($_POST['table_id'] ?? 0);
+            $table_number = trim($_POST['table_number'] ?? '');
+
+            if ($table_id > 0) {
+                $cleared_sessions = resetTableSessionsForTable($table_id, $table_number);
+                $success = 'Table session reset completed. Cleared ' . $cleared_sessions . ' active session(s).';
+            } else {
+                $errors[] = 'Invalid table selected';
             }
         }
     }
@@ -270,7 +325,6 @@ try {
                 <li><a href="manage_menu.php"><i class="fas fa-utensils"></i> Manage Menu</a></li>
                 <li><a href="manage_orders.php"><i class="fas fa-shopping-cart"></i> Manage Orders</a></li>
                 <li><a href="manage_tables.php" class="active"><i class="fas fa-chair"></i> Manage Tables</a></li>
-                <li><a href="manage_waiter_calls.php"><i class="fas fa-bell"></i> Waiter Calls</a></li>
             </ul>
         </div>
 
@@ -339,6 +393,9 @@ try {
                                     <button class="btn btn-small btn-warning" onclick="toggleStatus(<?php echo $table['id']; ?>)">
                                         <i class="fas fa-toggle-<?php echo $table['status'] === 'active' ? 'off' : 'on'; ?>"></i>
                                         <?php echo $table['status'] === 'active' ? 'Deactivate' : 'Activate'; ?>
+                                    </button>
+                                    <button class="btn btn-small btn-info" onclick="resetTableSession(<?php echo $table['id']; ?>, '<?php echo htmlspecialchars($table['table_number']); ?>')">
+                                        <i class="fas fa-refresh"></i> Reset
                                     </button>
                                     <button class="btn btn-small btn-danger" onclick="deleteTable(<?php echo $table['id']; ?>, '<?php echo htmlspecialchars($table['table_number']); ?>')">
                                         <i class="fas fa-trash"></i> Delete
@@ -434,6 +491,20 @@ try {
                 form.innerHTML = `
                     <input type="hidden" name="action" value="delete_table">
                     <input type="hidden" name="table_id" value="${id}">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function resetTableSession(id, number) {
+            if (confirm(`Reset Table ${number} for active sessions? This will clear the current table selection for any active customer sessions using this table.`)) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="reset_table">
+                    <input type="hidden" name="table_id" value="${id}">
+                    <input type="hidden" name="table_number" value="${number}">
                 `;
                 document.body.appendChild(form);
                 form.submit();

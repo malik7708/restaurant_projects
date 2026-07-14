@@ -1,11 +1,11 @@
 <?php
 /**
- * FoodieHub - Configuration File
+ * DigitalDine - Configuration File
  * Central configuration for the restaurant website
  */
 
 // Site Configuration
-define('SITE_NAME', 'FoodieHub');
+define('SITE_NAME', 'DigitalDine');
 define('SITE_URL', 'http://localhost/restaurant_project');
 define('ADMIN_URL', SITE_URL . '/admin');
 define('CUSTOMER_URL', SITE_URL . '/customer');
@@ -26,8 +26,8 @@ define('SESSION_TIMEOUT', 3600); // 1 hour in seconds
 define('PASSWORD_MIN_LENGTH', 6);
 
 // Restaurant Settings
-define('RESTAURANT_NAME', 'FoodieHub Restaurant');
-define('RESTAURANT_EMAIL', 'info@foodiehub.com');
+define('RESTAURANT_NAME', 'DigitalDine Restaurant');
+define('RESTAURANT_EMAIL', 'info@DigitalDine.com');
 define('RESTAURANT_PHONE', '(555) 123-4567');
 define('RESTAURANT_ADDRESS', '123 Food Street, City, State 12345');
 

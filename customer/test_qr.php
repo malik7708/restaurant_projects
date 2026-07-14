@@ -19,7 +19,7 @@ if ($table_param) {
             $_SESSION['table_number'] = $table['table_number'];
             $message = "✅ Table {$table['table_number']} selected successfully!";
         } else {
-            $message = "❌ Table {$table_number} not found or inactive.";
+            $message = "❌ Table {$table_number} not found or currently reserved. Please choose another table.";
         }
     } catch (PDOException $e) {
         $message = "❌ Database error: " . $e->getMessage();

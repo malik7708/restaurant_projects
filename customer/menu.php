@@ -2,21 +2,29 @@
 session_start();
 require_once __DIR__ . '/../includes/db.php';
 
-$page_title = 'Menu - FoodieHub';
+$page_title = 'Menu - DigitalDine';
 
 // Handle QR code table parameter
+$table_error = '';
 if (isset($_GET['table']) && !empty($_GET['table'])) {
     $table_number = trim($_GET['table']);
 
-    // Validate table exists and is active
     try {
-        $stmt = $pdo->prepare("SELECT id, table_number FROM tables WHERE table_number = ? AND status = 'active'");
+        $stmt = $pdo->prepare("SELECT id, table_number, status FROM tables WHERE table_number = ?");
         $stmt->execute([$table_number]);
         $table = $stmt->fetch();
 
         if ($table) {
-            $_SESSION['table_id'] = $table['id'];
-            $_SESSION['table_number'] = $table['table_number'];
+            if ($table['status'] === 'active') {
+                $_SESSION['table_id'] = $table['id'];
+                $_SESSION['table_number'] = $table['table_number'];
+            } else {
+                unset($_SESSION['table_id'], $_SESSION['table_number']);
+                $table_error = 'Table ' . htmlspecialchars($table['table_number']) . ' is currently reserved. Please choose another table or ask our staff for assistance.';
+            }
+        } else {
+            unset($_SESSION['table_id'], $_SESSION['table_number']);
+            $table_error = 'Table not found. Please scan a valid QR code.';
         }
     } catch (PDOException $e) {
         error_log("Table validation error: " . $e->getMessage());
@@ -49,8 +57,18 @@ try {
     $menu_items = [];
 }
 ?>
-
 <?php include __DIR__ . '/../includes/header.php'; ?>
+
+<?php if (!empty($table_error)): ?>
+
+    <section class="section">
+        <div class="container">
+            <div class="alert alert-error">
+                <?php echo htmlspecialchars($table_error); ?>
+            </div>
+        </div>
+    </section>
+<?php endif; ?>
 
 <?php
 $hero_title = 'Our Menu';
@@ -64,19 +82,6 @@ include __DIR__ . '/../includes/hero.php';
 <!-- Menu Items -->
 <section id="menu" class="section animate-on-scroll">
     <div class="container">
-        <!-- Table Information Badge -->
-        <?php if ($current_table): ?>
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
-                <div style="display: flex; align-items: center; gap: 1rem;">
-                    <i class="fas fa-utensils" style="font-size: 1.5rem;"></i>
-                    <div>
-                        <p style="margin: 0; font-size: 0.9rem; opacity: 0.9;">Table Number</p>
-                        <h3 style="margin: 0; font-size: 1.5rem; font-weight: bold;"><?php echo htmlspecialchars($current_table['table_number']); ?></h3>
-                    </div>
-                </div>
-                <button onclick="clearTableSession()" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); color: white; padding: 0.5rem 1rem; border-radius: 5px; cursor: pointer; font-size: 0.85rem;">Reset Table</button>
-            </div>
-        <?php endif; ?>
 
         <!-- Menu Section Title -->
         <h2 style="text-align: center; font-size: 2rem; margin-bottom: 0.5rem;">Our Menu</h2>
@@ -109,7 +114,7 @@ include __DIR__ . '/../includes/hero.php';
                                     <div class="price">Rs <?php echo number_format($item['price'], 0); ?></div>
                                 <?php endif; ?>
                             </div>
-                            <button class="btn add-to-cart-btn"
+                            <button class="btn mini-cart-add-btn"
                                 data-id="<?php echo $item['id']; ?>"
                                 data-name="<?php echo htmlspecialchars($item['name']); ?>"
                                 data-price="<?php echo $item['price']; ?>"
@@ -127,6 +132,9 @@ include __DIR__ . '/../includes/hero.php';
     </div>
 </section>
 
+<!-- Mini cart drawer removed site-wide. main.js remains to handle cart state. -->
+<script src="/restaurant_project/assets/js/main.js"></script>
+
 <!-- Call to Action -->
 <section class="section" style="background: #f8f9fa; text-align: center;">
     <div class="container">
@@ -140,22 +148,3 @@ include __DIR__ . '/../includes/hero.php';
 </section>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>
-
-<script>
-    function clearTableSession() {
-        if (confirm('Are you sure you want to clear the current table? You will need to scan a QR code again.')) {
-            fetch('clear_table.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                }).then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        location.reload();
-                    }
-                })
-                .catch(err => console.error('Error:', err));
-        }
-    }
-</script>
